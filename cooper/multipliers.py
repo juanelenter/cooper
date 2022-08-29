@@ -18,11 +18,8 @@ class BaseMultiplier(torch.nn.Module, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def shape(self):
-        """
-        Returns the shape of the explicit multipliers. In the case of implicit
-        multipliers, this should return the *actual* predicted multipliers.
-        """
+    def parameters(self):
+        """Returns the parameters associated with the multiplier."""
         pass
 
     @property
@@ -76,23 +73,55 @@ class DenseMultiplier(BaseMultiplier):
 
     def __init__(self, init: torch.Tensor, *, positive: bool = False):
         super().__init__()
-        self.weight = torch.nn.Parameter(init)
+
+        # Create one Parameter for each individual dual variable. The dual
+        # optimizer will consider a parameter group for each variable, which
+        # allows it to keep track of separate states for different variables.
+        # This is useful when employing dual restarts on some dual variables and
+        # not others
+        self._parameters = [torch.nn.Parameter(_) for _ in init.flatten()]
+
+        self.shape = init.shape
+        self.device = init.device
+
         self.positive = positive
-        self.device = self.weight.device
 
     @property
-    def shape(self):
-        """Returns the shape of the multiplier tensor."""
-        return self.weight.shape
+    def parameters(self):
+        """Returns the parameters associated with the multiplier."""
+        return self._parameters
+
+    @property
+    def data(self):
+        """Returns current values stored in the multiplier tensor."""
+        values = [_.data for _ in self._parameters]
+        return torch.stack(values).unflatten(0, self.shape)
 
     @property
     def grad(self):
         """Returns current gradient stored in the multiplier tensor."""
-        return self.weight.grad
+        grads = [_.grad for _ in self._parameters]
+        return torch.stack(grads).unflatten(0, self.shape)
+
+    @property
+    def feasible_dict(self) -> torch.Tensor:
+        """
+        Returns a dict of multipliers associated with constraints that are
+        currently feasible.
+        """
+
+        assert (
+            self.positive
+        ), "Feasibility can only be checked for inequality constraints"
+
+        mask = self.grad > 0
+        as_dict = {p: mask[i].item() for i, p in enumerate(self._parameters)}
+
+        return as_dict
 
     def forward(self):
         """Return the current value of the multiplier."""
-        return self.weight
+        return torch.stack(self._parameters).unflatten(0, self.shape)
 
     def project_(self):
         """
@@ -100,7 +129,8 @@ class DenseMultiplier(BaseMultiplier):
         non-negative.
         """
         if self.positive:
-            self.weight.data = torch.relu(self.weight.data)
+            for param in self._parameters:
+                param.data = torch.relu(param.data)
 
     def restart_if_feasible_(self):
         """
@@ -115,23 +145,24 @@ class DenseMultiplier(BaseMultiplier):
 
         # The code below still works in the case of proxy constraints, since the
         # multiplier updates are computed based on *non-proxy* constraints
-        feasible_filter = self.weight.grad > 0
-        self.weight.grad[feasible_filter] = 0.0
-        self.weight.data[feasible_filter] = 0.0
+        feasible_dict = self.feasible_dict
 
-        self.weight.grad[feasible_filter] = 0.0
-        self.weight.data[feasible_filter] = 0.0
+        for param, is_feasible in feasible_dict.items():
+            if is_feasible:
+                assert len(param.shape) == 0
+                param.data.fill_(0.0)
+                param.grad.fill_(0.0)
 
     def __str__(self):
-        return str(self.weight.data)
+        return str(self.forward().data)
 
     def __repr__(self):
         pos_str = "inequality" if self.positive else "equality"
-        rep = "DenseMultiplier(" + pos_str + ", " + str(self.weight.data) + ")"
+        rep = "DenseMultiplier(" + pos_str + ", " + str(self.forward().data) + ")"
         return rep
 
     def __members(self):
-        return (self.positive, self.weight)
+        return (self.positive, self.forward())
 
     def __hash__(self):
         return hash(self.__members())

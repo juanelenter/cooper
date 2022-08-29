@@ -52,7 +52,7 @@ class BaseLagrangianFormulation(Formulation, metaclass=abc.ABCMeta):
 
         for mult in [self.ineq_multipliers, self.eq_multipliers]:
             if mult is not None:
-                all_dual_params.extend(list(mult.parameters()))
+                all_dual_params.extend(list(mult.parameters))
 
         return all_dual_params
 
@@ -403,7 +403,7 @@ class LagrangianFormulation(BaseLagrangianFormulation):
         # Fill in the gradients for the dual variables based on the violation of
         # the non-proxy constraints
         if not (ignore_dual) and self.cmp.is_constrained:
-            dual_vars = [_ for _ in self.state() if _ is not None]
+            dual_vars = self.dual_parameters
             self.accumulated_violation_dot_prod.backward(inputs=dual_vars)
 
 
