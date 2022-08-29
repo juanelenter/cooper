@@ -48,14 +48,14 @@ def test_manual_alternating(aim_device, alternating, use_defect_fn):
     assert cmp.state.eq_defect is None
 
     # Multiplier initialization
-    assert torch.allclose(formulation.state()[0], mktensor([0.0, 0.0]))
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.0, 0.0]))
     assert formulation.state()[1] is None
 
     # Check primal and dual gradients after backward. Dual gradient must match
     # ineq_defect
     formulation.custom_backward(lagrangian)
     assert torch.allclose(params.grad, mktensor([0.0, -4.0]))
-    assert torch.allclose(formulation.state()[0].grad, cmp.state.ineq_defect)
+    assert torch.allclose(formulation.ineq_multipliers.grad, cmp.state.ineq_defect)
 
     # Check updated primal and dual variable values
     coop.step(closure=cmp.closure, params=params, defect_fn=defect_fn)
@@ -74,12 +74,16 @@ def test_manual_alternating(aim_device, alternating, use_defect_fn):
             assert torch.allclose(cmp.state.loss, mktensor([1.8432]))
 
         # The constraint defects are [1.96, -1.96]
-        assert torch.allclose(formulation.state()[0], mktensor([1.96 * 1e-2, 0.0]))
+        assert torch.allclose(
+            formulation.ineq_multipliers(), mktensor([1.96 * 1e-2, 0.0])
+        )
     else:
         # Loss and violation measurements taken the initialization point [0, -1]
         assert torch.allclose(cmp.state.loss, mktensor([2.0]))
         # In this case the defects are [2., -2.]
-        assert torch.allclose(formulation.state()[0], mktensor([2.0 * 1e-2, 0.0]))
+        assert torch.allclose(
+            formulation.ineq_multipliers(), mktensor([2.0 * 1e-2, 0.0])
+        )
 
 
 @pytest.mark.parametrize("aim_device", ["cpu", "cuda"])

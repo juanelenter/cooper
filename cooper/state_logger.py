@@ -47,9 +47,9 @@ class StateLogger:
             elif metric == "eq_defect":
                 aux_dict[metric] = deepcopy(formulation.cmp.state.eq_defect.data)
             elif metric == "ineq_multipliers":
-                aux_dict[metric] = deepcopy(formulation.state()[0].data)
+                aux_dict[metric] = deepcopy(formulation.ineq_multipliers.data)
             elif metric == "eq_multipliers":
-                aux_dict[metric] = deepcopy(formulation.state()[1].data)
+                aux_dict[metric] = deepcopy(formulation.eq_multipliers.data)
 
         if partial_dict is not None:
             aux_dict.update(partial_dict)

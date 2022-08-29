@@ -1,8 +1,8 @@
 """Cooper-related utilities for writing tests."""
 
 import functools
-from types import GeneratorType
 from dataclasses import dataclass
+from types import GeneratorType
 from typing import Union
 
 import pytest

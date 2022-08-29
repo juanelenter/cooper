@@ -148,7 +148,7 @@ def test_manual_augmented_lagrangian(aim_device):
     assert torch.allclose(params, mktensor([0.02, -0.94]))
 
     # Check inequality multipliers
-    assert torch.allclose(formulation.state()[0], mktensor([1.92, 0.0]))
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([1.92, 0.0]))
 
     coop.dual_scheduler.step()
 
@@ -174,7 +174,9 @@ def test_manual_augmented_lagrangian(aim_device):
 
     # Check inequality multipliers
     # Multiplier gradient signed is flipped inside step
-    assert torch.allclose(-formulation.state()[0].grad, mktensor([1.8060, -1.860636]))
-    assert torch.allclose(formulation.state()[0], mktensor([3.726, 0.0]))
+    assert torch.allclose(
+        -formulation.ineq_multipliers.grad, mktensor([1.8060, -1.860636])
+    )
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([3.726, 0.0]))
 
     coop.dual_scheduler.step()

@@ -43,14 +43,14 @@ def test_manual_alternating_proxy(aim_device):
     assert cmp.state.proxy_eq_defect is None
 
     # Multiplier initialization
-    assert torch.allclose(formulation.state()[0], mktensor([0.0, 0.0]))
-    assert formulation.state()[1] is None
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.0, 0.0]))
+    assert formulation.eq_multipliers is None
 
     # Check primal and dual gradients after backward. Dual gradient must match
     # ineq_defect
     formulation.custom_backward(lagrangian)
     assert torch.allclose(params.grad, mktensor([0.0, -4.0]))
-    assert torch.allclose(formulation.state()[0].grad, cmp.state.ineq_defect)
+    assert torch.allclose(formulation.ineq_multipliers.grad, cmp.state.ineq_defect)
 
     # Must pass closrue again to compute constraints for alternating update
     coop.step(cmp.closure, params)
@@ -60,7 +60,7 @@ def test_manual_alternating_proxy(aim_device):
     assert torch.allclose(cmp.state.loss, mktensor([2 * (-0.8) ** 2]))
     # Constraint defects [1.8, -1.8] --> this is used to update multipliers
     # "Proxy defects" [1.8, -1.72] --> used to compute primal gradient
-    assert torch.allclose(formulation.state()[0], mktensor([1.8 * 1e-2, 0.0]))
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([1.8 * 1e-2, 0.0]))
 
     # ----------------------- Second iteration -----------------------
     coop.zero_grad()
@@ -76,14 +76,14 @@ def test_manual_alternating_proxy(aim_device):
     # ineq_defect
     formulation.custom_backward(lagrangian)
     assert torch.allclose(params.grad, mktensor([-0.0162, -3.218]))
-    assert torch.allclose(formulation.state()[0].grad, cmp.state.ineq_defect)
+    assert torch.allclose(formulation.ineq_multipliers.grad, cmp.state.ineq_defect)
 
     # Must pass closrue again to compute constraints for alternating update
     coop.step(cmp.closure, params)
 
     assert torch.allclose(params, mktensor([8.1e-4, -0.6391]))
     # Constraint violation at this point [1.6383, -1.63909936]
-    assert torch.allclose(formulation.state()[0], mktensor([0.034383, 0.0]))
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.034383, 0.0]))
 
     if device == "cuda":
         assert cmp.state.loss.is_cuda

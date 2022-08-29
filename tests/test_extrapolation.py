@@ -79,16 +79,16 @@ def test_manual_extrapolation(aim_device, primal_optimizer_cls):
     assert cmp.state.eq_defect is None
 
     # Multiplier initialization
-    assert torch.allclose(formulation.state()[0], mktensor([0.0, 0.0]))
-    assert formulation.state()[1] is None
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.0, 0.0]))
+    assert formulation.eq_multipliers is None
 
     # Check primal and dual gradients after backward. Dual gradient must match
     # ineq_defect
     formulation.custom_backward(lagrangian)
     assert torch.allclose(params.grad, mktensor([0.0, -4.0]))
-    assert torch.allclose(formulation.state()[0].grad, cmp.state.ineq_defect)
+    assert torch.allclose(formulation.ineq_multipliers.grad, cmp.state.ineq_defect)
 
     # Check updated primal and dual variable values
     coop.step(cmp.closure, params)
     assert torch.allclose(params, mktensor([2.0e-4, -0.9614]))
-    assert torch.allclose(formulation.state()[0], mktensor([0.0196, 0.0]))
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.0196, 0.0]))

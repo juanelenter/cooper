@@ -46,19 +46,19 @@ def test_manual_proxy_constraints(aim_device):
     assert cmp.state.proxy_eq_defect is None
 
     # Multiplier initialization
-    assert torch.allclose(formulation.state()[0], mktensor([0.0, 0.0]))
-    assert formulation.state()[1] is None
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.0, 0.0]))
+    assert formulation.eq_multipliers is None
 
     # Check primal and dual gradients after backward. Dual gradient must match
     # ineq_defect
     formulation.custom_backward(lagrangian)
     assert torch.allclose(params.grad, mktensor([0.0, -4.0]))
-    assert torch.allclose(formulation.state()[0].grad, cmp.state.ineq_defect)
+    assert torch.allclose(formulation.ineq_multipliers.grad, cmp.state.ineq_defect)
 
     # Check updated primal and dual variable values
     coop.step()
     assert torch.allclose(params, mktensor([0.0, -0.8]))
-    assert torch.allclose(formulation.state()[0], mktensor([0.02, 0.0]))
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.02, 0.0]))
 
     # ----------------------- Second iteration -----------------------
     coop.zero_grad()
@@ -74,12 +74,12 @@ def test_manual_proxy_constraints(aim_device):
     # ineq_defect
     formulation.custom_backward(lagrangian)
     assert torch.allclose(params.grad, mktensor([-0.018, -3.22]))
-    assert torch.allclose(formulation.state()[0].grad, cmp.state.ineq_defect)
+    assert torch.allclose(formulation.ineq_multipliers.grad, cmp.state.ineq_defect)
 
     # Check updated primal and dual variable values
     coop.step()
     assert torch.allclose(params, mktensor([9e-4, -0.639]))
-    assert torch.allclose(formulation.state()[0], mktensor([0.038, 0.0]))
+    assert torch.allclose(formulation.ineq_multipliers(), mktensor([0.038, 0.0]))
 
     if device == "cuda":
         assert cmp.state.loss.is_cuda
