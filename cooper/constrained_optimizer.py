@@ -398,12 +398,11 @@ class ConstrainedOptimizer:
 
     def dual_step(self, call_extrapolation=False):
 
-        # Flip gradients for multipliers to perform ascent.
+        # Flip gradients for dual variables to perform ascent.
         # We only do the flipping *right before* applying the optimizer step to
         # avoid accidental double sign flips.
-        for multiplier in self.formulation.state():
-            if multiplier is not None:
-                multiplier.grad.mul_(-1.0)
+        for dual_parameter in self.formulation.dual_parameters:
+            dual_parameter.grad.mul_(-1.0)
 
         # Update multipliers based on current constraint violations (gradients)
         if call_extrapolation:
@@ -414,13 +413,31 @@ class ConstrainedOptimizer:
         if self.formulation.ineq_multipliers is not None:
             if self.dual_restarts:
                 # "Reset" value of inequality multipliers to zero as soon as
-                # solution becomes feasible
-                self.restart_dual_variables()
+                # solution becomes feasible. Moreover, reset the dual
+                # optimizer's state
+                self.restart_dual()
 
             # Apply projection step to inequality multipliers
             self.formulation.ineq_multipliers.project_()
 
-    def restart_dual_variables(self):
+    def restart_dual(self):
+        # Get mask of multipliers associated with constraints that are currently
+        # feasible
+        feasible_dict = self.formulation.ineq_multipliers.feasible_dict
+
+        if any(feasible_dict):
+            # Reset dual optimizer's state for inequality multipliers whose
+            # constraints are now feasible
+
+            dual_optimizer_state = self.dual_optimizer.state
+            for param, state in dual_optimizer_state.items():
+                # Pytorch optimizers have a lazy state initialization. By setting
+                # the state dictionary associated with some dual variable to {},
+                # the optimizer will internally reset the state to the default
+                # at the beggining of the next call to `dual_optimizer.step()`.
+                if feasible_dict[param]:
+                    dual_optimizer_state[param] = {}
+
         # Execute restart for multipliers associated with inequality constraints
         self.formulation.ineq_multipliers.restart_if_feasible_()
 
