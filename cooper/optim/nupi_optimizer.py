@@ -182,7 +182,8 @@ def _nupi_zero_init(
     # Weight decay is applied after estimating the error change, similar to AdamW.
     # See https://arxiv.org/abs/1711.05101 for details.
     if weight_decay != 0:
-        nupi_update.add_(param, alpha=weight_decay)
+        alpha = -weight_decay if maximize else weight_decay
+        nupi_update.add_(param, alpha=alpha)
 
     alpha = lr if maximize else -lr
     param.add_(nupi_update, alpha=alpha)
@@ -244,7 +245,8 @@ def _sparse_nupi_zero_init(
     # AdamW. See https://arxiv.org/abs/1711.05101 for details.
     if weight_decay != 0:
         observed_params = param.sparse_mask(error)
-        nupi_update.add_(observed_params, alpha=weight_decay)
+        alpha = -weight_decay if maximize else weight_decay
+        nupi_update.add_(observed_params, alpha=alpha)
 
     alpha = lr if maximize else -lr
     param.add_(nupi_update, alpha=alpha)
@@ -288,7 +290,8 @@ def _nupi_sgd_init(
     # Weight decay is applied after estimating the error change, similar to AdamW.
     # See https://arxiv.org/abs/1711.05101 for details.
     if weight_decay != 0:
-        nupi_update.add_(param, alpha=weight_decay)
+        alpha = -weight_decay if maximize else weight_decay
+        nupi_update.add_(param, alpha=alpha)
 
     alpha = lr if maximize else -lr
     param.add_(nupi_update, alpha=alpha)
@@ -358,7 +361,8 @@ def _sparse_nupi_sgd_init(
     # AdamW. See https://arxiv.org/abs/1711.05101 for details.
     if weight_decay != 0:
         observed_params = param.sparse_mask(error)
-        nupi_update.add_(observed_params, alpha=weight_decay)
+        alpha = -weight_decay if maximize else weight_decay
+        nupi_update.add_(observed_params, alpha=alpha)
 
     alpha = lr if maximize else -lr
     param.add_(nupi_update, alpha=alpha)
